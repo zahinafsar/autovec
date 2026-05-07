@@ -2,11 +2,7 @@
 
 type Opts = {
   transparent: boolean;
-  ratio: "1:1" | "4:3" | "3:4" | "16:9" | "9:16";
-  padding: boolean;
 };
-
-const RATIOS: Opts["ratio"][] = ["1:1", "4:3", "3:4", "16:9", "9:16"];
 
 export function OptionsPanel({
   value,
@@ -21,30 +17,9 @@ export function OptionsPanel({
   return (
     <div className="flex flex-col gap-4">
       <span className="text-xs uppercase tracking-wider text-muted">Options</span>
-
-      <div>
-        <div className="text-sm mb-2">Aspect ratio</div>
-        <div className="flex flex-wrap gap-2">
-          {RATIOS.map((r) => (
-            <button
-              key={r}
-              onClick={() => set("ratio", r)}
-              className={`chip chip-toggle ${value.ratio === r ? "on" : ""}`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="flex items-center justify-between">
         <span className="text-sm">Transparent background</span>
         <Toggle checked={value.transparent} onChange={(b) => set("transparent", b)} />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <span className="text-sm">Add padding around subject</span>
-        <Toggle checked={value.padding} onChange={(b) => set("padding", b)} />
       </div>
     </div>
   );

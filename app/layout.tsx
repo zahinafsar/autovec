@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { Topbar } from "@/components/Topbar";
+import { ConfirmRoot } from "@/components/ConfirmModal";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <Topbar />
           <main className="relative z-10">{children}</main>
+          <ConfirmRoot />
         </AuthProvider>
       </body>
     </html>

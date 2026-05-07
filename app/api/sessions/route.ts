@@ -23,7 +23,11 @@ export async function POST(req: Request) {
   const referenceImageUrl = body?.referenceImageUrl
     ? String(body.referenceImageUrl)
     : null;
-  const initialPrompt = body?.prompt ? String(body.prompt) : "";
+  const promptsArr: string[] = Array.isArray(body?.prompts)
+    ? (body.prompts as unknown[]).map((x) => String(x ?? ""))
+    : body?.prompt
+      ? [String(body.prompt)]
+      : [""];
 
   const [s] = await db
     .insert(genSessions)
@@ -35,11 +39,13 @@ export async function POST(req: Request) {
     })
     .returning();
 
-  await db.insert(variants).values({
-    sessionId: s.id,
-    position: 0,
-    prompt: initialPrompt,
-  });
+  await db.insert(variants).values(
+    promptsArr.map((p, i) => ({
+      sessionId: s.id,
+      position: i,
+      prompt: p,
+    })),
+  );
 
   return NextResponse.json({ session: s });
 }

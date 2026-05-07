@@ -3,7 +3,7 @@ import {
   createCheckout,
 } from "@lemonsqueezy/lemonsqueezy.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { env } from "@/lib/env";
+import { env, PRICE_CENTS_PER_CREDIT, MIN_CREDIT_PURCHASE } from "@/lib/env";
 
 if (env.LS_API_KEY) {
   lemonSqueezySetup({
@@ -12,13 +12,9 @@ if (env.LS_API_KEY) {
   });
 }
 
-export const CREDIT_PACKS = {
-  "100": { credits: 100, label: "Starter", priceCents: 999 },
-  "500": { credits: 500, label: "Pro", priceCents: 3999 },
-  "1500": { credits: 1500, label: "Studio", priceCents: 9999 },
-} as const;
-
-export type PackKey = keyof typeof CREDIT_PACKS;
+export function priceCentsForCredits(credits: number): number {
+  return Math.max(MIN_CREDIT_PURCHASE, Math.floor(credits)) * PRICE_CENTS_PER_CREDIT;
+}
 
 export function verifyLsSignature(
   rawBody: string,
@@ -35,20 +31,20 @@ export function verifyLsSignature(
 }
 
 export async function createCreditCheckout(opts: {
-  pack: PackKey;
+  credits: number;
   userId: string;
   email: string;
   purchaseId: string;
 }): Promise<{ url: string }> {
-  const pack = CREDIT_PACKS[opts.pack];
-  const variantId = env.LS_VARIANTS[opts.pack];
-  if (!variantId) throw new Error(`No LS variant for pack ${opts.pack}`);
+  if (!env.LS_VARIANT_ID) throw new Error("LEMONSQUEEZY_VARIANT_ID not configured");
 
-  const { data, error } = await createCheckout(env.LS_STORE_ID, variantId, {
+  const cents = priceCentsForCredits(opts.credits);
+
+  const { data, error } = await createCheckout(env.LS_STORE_ID, env.LS_VARIANT_ID, {
     testMode: !env.IS_PROD,
     productOptions: {
-      name: `${pack.credits} Autovec credits`,
-      description: `${pack.label} pack — ${pack.credits} credits`,
+      name: `${opts.credits} Autovec credits`,
+      description: `${opts.credits} credits — generates ${Math.floor(opts.credits / 10)} variants.`,
       redirectUrl: `${env.APP_URL}/billing/success`,
       receiptButtonText: "Back to Autovec",
       receiptLinkUrl: `${env.APP_URL}/dashboard`,
@@ -59,9 +55,10 @@ export async function createCreditCheckout(opts: {
       custom: {
         purchase_id: opts.purchaseId,
         user_id: opts.userId,
-        pack: opts.pack,
+        credits: String(opts.credits),
       },
     },
+    customPrice: cents,
   });
   if (error) throw new Error(`LS checkout failed: ${error.message}`);
   const url = data?.data?.attributes?.url;

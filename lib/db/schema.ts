@@ -61,11 +61,9 @@ export const genSessions = pgTable(
     options: jsonb("options")
       .$type<{
         transparent: boolean;
-        ratio: "1:1" | "4:3" | "3:4" | "16:9" | "9:16";
-        padding: boolean;
       }>()
       .notNull()
-      .default({ transparent: false, ratio: "1:1", padding: false }),
+      .default({ transparent: false }),
     status: sessionStatusEnum("status").notNull().default("DRAFT"),
     batchJobId: text("batch_job_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -106,7 +104,6 @@ export const purchases = pgTable("purchases", {
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  pack: text("pack").notNull(),
   credits: integer("credits").notNull(),
   amountCents: integer("amount_cents").notNull(),
   status: purchaseStatusEnum("status").notNull().default("PENDING"),

@@ -5,10 +5,14 @@ import { useAuth } from "@/components/auth/AuthProvider";
 export function ImageDropzone({
   value,
   onChange,
+  onFile,
+  defer = false,
   label = "Reference cartoon",
 }: {
   value: string | null;
   onChange: (url: string | null) => void;
+  onFile?: (file: File | null) => void;
+  defer?: boolean;
   label?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -16,7 +20,13 @@ export function ImageDropzone({
   const [error, setError] = useState<string | null>(null);
   const { user, openLogin } = useAuth();
 
-  async function upload(file: File) {
+  async function handleFile(file: File) {
+    if (defer) {
+      const objUrl = URL.createObjectURL(file);
+      onFile?.(file);
+      onChange(objUrl);
+      return;
+    }
     if (!user) {
       openLogin(() => inputRef.current?.click());
       return;
@@ -45,7 +55,7 @@ export function ImageDropzone({
         onDrop={(e) => {
           e.preventDefault();
           const f = e.dataTransfer.files?.[0];
-          if (f) upload(f);
+          if (f) handleFile(f);
         }}
         className="cursor-pointer rounded-xl border border-dashed border-white/10 bg-[#101018] hover:border-orange-400/40 transition-colors p-4 flex items-center gap-4 min-h-[120px]"
       >
@@ -61,6 +71,7 @@ export function ImageDropzone({
               onClick={(e) => {
                 e.stopPropagation();
                 onChange(null);
+                onFile?.(null);
               }}
               className="btn-ghost text-xs"
             >
@@ -79,7 +90,7 @@ export function ImageDropzone({
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) upload(f);
+            if (f) handleFile(f);
             e.target.value = "";
           }}
         />

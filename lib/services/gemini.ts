@@ -3,6 +3,8 @@ import { env } from "@/lib/env";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { removeBackground } from "@/lib/services/removebg";
+import sharp from "sharp";
 
 const MODEL = "gemini-2.5-flash-image";
 
@@ -14,8 +16,6 @@ function client() {
 
 export type GenOptions = {
   transparent: boolean;
-  ratio: "1:1" | "4:3" | "3:4" | "16:9" | "9:16";
-  padding: boolean;
 };
 
 export type VariantSpec = {
@@ -25,31 +25,18 @@ export type VariantSpec = {
 
 function buildPrompt(spec: VariantSpec, opts: GenOptions, commonPrompt?: string): string {
   const parts: string[] = [];
-  parts.push(
-    "Generate a single high-quality vector-style cartoon illustration.",
-  );
-  parts.push(
-    "Use the provided reference image to match the character/style/subject identity, then apply the variation requested below.",
-  );
   if (commonPrompt && commonPrompt.trim()) {
-    parts.push(`Shared instructions for every variant in this session: ${commonPrompt.trim()}`);
+    parts.push(commonPrompt.trim());
   }
-  parts.push(`Variation request: ${spec.prompt || "(no extra detail)"}`);
-  parts.push("Style: clean cartoon vector look, smooth flat colors, crisp edges, no photoreal textures, no watermarks, no text labels.");
-  parts.push(`Aspect ratio: ${opts.ratio}.`);
+  if (spec.prompt && spec.prompt.trim()) {
+    parts.push(spec.prompt.trim());
+  }
   if (opts.transparent) {
     parts.push(
-      "Output the subject on a fully transparent background (PNG alpha) — no surrounding scene.",
+      "Place the subject on a uniform plain pastel background that contrasts with the subject's colors. The subject must be sharply isolated with crisp edges — no shadows that blend into the background, no surrounding scene, no patterns. The background will be removed in post-processing.",
     );
-  } else {
-    parts.push("Output on a clean simple solid background.");
   }
-  if (opts.padding) {
-    parts.push("Leave generous empty padding/margin around the subject.");
-  } else {
-    parts.push("Frame the subject tightly with minimal padding.");
-  }
-  return parts.join("\n");
+  return parts.join("\n\n");
 }
 
 async function fetchToBase64(url: string): Promise<{ data: string; mimeType: string }> {
@@ -97,11 +84,28 @@ export async function generateVariant(opts: {
     throw new Error("Gemini returned no image data");
   }
 
-  const ext = inline.inlineData.mimeType.includes("jpeg") ? "jpg" : "png";
+  let imgBytes: Uint8Array = Buffer.from(inline.inlineData.data, "base64");
+  let mime = inline.inlineData.mimeType || "image/png";
+
+  if (opts.genOptions.transparent) {
+    try {
+      const noBg = await removeBackground(Buffer.from(imgBytes), mime);
+      // trim transparent borders so the subject fills the canvas, lossless PNG out
+      const trimmed = await sharp(noBg)
+        .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 1 })
+        .png({ compressionLevel: 9, palette: false })
+        .toBuffer();
+      imgBytes = trimmed;
+      mime = "image/png";
+    } catch (e) {
+      console.error("[gemini] transparent post-process failed, falling back", e);
+    }
+  }
+
+  const ext = mime.includes("jpeg") ? "jpg" : "png";
   const filename = `${randomUUID()}.${ext}`;
   const outDir = path.join(process.cwd(), "public", "uploads", "generated");
   await fs.mkdir(outDir, { recursive: true });
-  const outPath = path.join(outDir, filename);
-  await fs.writeFile(outPath, Buffer.from(inline.inlineData.data, "base64"));
+  await fs.writeFile(path.join(outDir, filename), imgBytes);
   return { url: `/uploads/generated/${filename}` };
 }

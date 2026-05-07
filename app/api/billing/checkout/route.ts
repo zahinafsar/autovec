@@ -3,11 +3,10 @@ import { db } from "@/lib/db";
 import { purchases } from "@/lib/db/schema";
 import { getSessionUser } from "@/lib/session";
 import {
-  CREDIT_PACKS,
   createCreditCheckout,
-  type PackKey,
+  priceCentsForCredits,
 } from "@/lib/services/lemonsqueezy";
-import { env } from "@/lib/env";
+import { env, MIN_CREDIT_PURCHASE } from "@/lib/env";
 
 export async function POST(req: Request) {
   const u = await getSessionUser();
@@ -16,25 +15,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Billing not configured" }, { status: 503 });
 
   const body = await req.json().catch(() => ({}));
-  const pack = body?.pack as PackKey | undefined;
-  if (!pack || !(pack in CREDIT_PACKS))
-    return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
+  const credits = Math.floor(Number(body?.credits));
+  if (!Number.isFinite(credits) || credits < MIN_CREDIT_PURCHASE) {
+    return NextResponse.json(
+      { error: `Minimum ${MIN_CREDIT_PURCHASE} credits` },
+      { status: 400 },
+    );
+  }
 
-  const meta = CREDIT_PACKS[pack];
+  const cents = priceCentsForCredits(credits);
+
   const [p] = await db
     .insert(purchases)
     .values({
       userId: u.id,
-      pack,
-      credits: meta.credits,
-      amountCents: meta.priceCents,
+      credits,
+      amountCents: cents,
       status: "PENDING",
     })
     .returning();
 
   try {
     const { url } = await createCreditCheckout({
-      pack,
+      credits,
       userId: u.id,
       email: u.email,
       purchaseId: p.id,

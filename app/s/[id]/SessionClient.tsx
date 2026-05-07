@@ -7,6 +7,7 @@ import { OptionsPanel } from "@/components/OptionsPanel";
 import { VariantList } from "@/components/VariantList";
 import { CropModal } from "@/components/CropModal";
 import { ChevronLeft } from "lucide-react";
+import { confirm } from "@/components/ConfirmModal";
 
 type Variant = {
   id: string;
@@ -23,7 +24,7 @@ type SessionData = {
   commonPrompt: string;
   referenceImageUrl: string | null;
   originalReferenceUrl: string | null;
-  options: { transparent: boolean; ratio: "1:1" | "4:3" | "3:4" | "16:9" | "9:16"; padding: boolean };
+  options: { transparent: boolean };
   status: "DRAFT" | "GENERATING" | "COMPLETED" | "FAILED";
   variants: Variant[];
 };
@@ -58,6 +59,7 @@ export function SessionClient({ id }: { id: string }) {
       openLogin(() => location.reload());
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [loading, user, openLogin, load]);
 
@@ -131,7 +133,7 @@ export function SessionClient({ id }: { id: string }) {
     });
   }
 
-  async function generateOne(variantId: string) {
+  async function runGenerateOne(variantId: string) {
     setError(null);
     if (!session) return;
     if (!session.referenceImageUrl) {
@@ -139,7 +141,7 @@ export function SessionClient({ id }: { id: string }) {
       return;
     }
     if ((user?.credits ?? 0) < CREDITS_PER) {
-      openBuy(() => generateOne(variantId));
+      openBuy(() => runGenerateOne(variantId));
       return;
     }
     setSession((prev) =>
@@ -162,7 +164,7 @@ export function SessionClient({ id }: { id: string }) {
     const j = await r.json();
     if (!r.ok) {
       if (r.status === 402) {
-        openBuy(() => generateOne(variantId));
+        openBuy(() => runGenerateOne(variantId));
       } else {
         setError(j.error ?? "Generation failed");
       }
@@ -171,6 +173,23 @@ export function SessionClient({ id }: { id: string }) {
     }
     refresh();
     load();
+  }
+
+  function generateOne(variantId: string) {
+    if (!session) return;
+    const v = session.variants.find((x) => x.id === variantId);
+    const isRegen = v?.status === "COMPLETED" && !!v.resultUrl;
+    if (isRegen) {
+      confirm({
+        title: "Regenerate this variant?",
+        message: `This will replace the current image and cost ${CREDITS_PER} credits. You have ${user?.credits ?? 0} credits.`,
+        confirmText: `Regenerate (${CREDITS_PER} credits)`,
+        cancelText: "Cancel",
+        onConfirm: () => runGenerateOne(variantId),
+      });
+      return;
+    }
+    runGenerateOne(variantId);
   }
 
   async function generateAll() {

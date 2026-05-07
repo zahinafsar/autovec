@@ -1,0 +1,1 @@
+ALTER TABLE "gen_sessions" ALTER COLUMN "options" SET DEFAULT '{"transparent":false}'::jsonb;
