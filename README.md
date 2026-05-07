@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Autovec
 
-## Getting Started
+AI cartoon variant generator. Upload one reference cartoon, prompt multiple variants, get unique generations powered by Gemini.
 
-First, run the development server:
+## Stack
+- Next.js 16 (App Router)
+- Postgres 16 in Docker
+- Drizzle ORM
+- bcryptjs + HMAC cookie sessions
+- Gemini (`@google/genai`, model `gemini-2.5-flash-image`)
+- Lemon Squeezy for credit purchases
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up -d           # postgres on :5434
+cp .env.example .env           # then fill GEMINI_API_KEY and LS_*
+npm install
+npm run db:migrate             # apply drizzle migrations
+npm run db:seed                # creates test@autovec.dev / test1234 with 1000 credits
+npm run dev                    # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Env
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Var | Notes |
+|---|---|
+| `DATABASE_URL` | Already points at Docker postgres on `:5434` |
+| `SESSION_SECRET` | Long random string; signs the auth cookie |
+| `GEMINI_API_KEY` | From Google AI Studio |
+| `LEMONSQUEEZY_API_KEY` | LS API JWT |
+| `LEMONSQUEEZY_STORE_ID` | LS store ID |
+| `LEMONSQUEEZY_VARIANT_ID_100` | Variant for 100-credit pack |
+| `LEMONSQUEEZY_VARIANT_ID_500` | Variant for 500-credit pack |
+| `LEMONSQUEEZY_VARIANT_ID_1500` | Variant for 1500-credit pack |
+| `LEMONSQUEEZY_WEBHOOK_SECRET` | For HMAC signature check |
+| `NEXT_PUBLIC_APP_URL` | Origin used for LS redirect |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+LS webhook URL: `${APP_URL}/api/billing/webhook` — subscribe to `order_created`.
 
-## Learn More
+## Pricing
 
-To learn more about Next.js, take a look at the following resources:
+10 credits per generated variant. Packs:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Pack | Credits | Price | Variants |
+|---|---|---|---|
+| Starter | 100 | $9.99 | 10 |
+| Pro | 500 | $39.99 | 50 |
+| Studio | 1500 | $99.99 | 150 |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Gemini 2.5 Flash Image is ~$0.039/image. Cost per variant ≈ $0.04. Sale price per variant ≈ $1 (Starter pack). ~96% gross margin.
 
-## Deploy on Vercel
+## Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `lib/db/schema.ts` — `users`, `gen_sessions`, `variants`, `purchases`
+- `lib/session.ts` — HMAC-signed cookie auth (no JWT lib)
+- `lib/services/gemini.ts` — calls `generateContent` with reference image + prompt; saves PNG into `/public/uploads/generated`
+- `lib/services/lemonsqueezy.ts` — checkout creation + webhook signature verify
+- `app/api/sessions/[id]/generate/route.ts` — atomic credit deduction (`sql\`credits >= ${cost}\``), then fires the per-variant generation in the background
+- `app/api/sessions/[id]/refresh/route.ts` — client polls every 2.5s for status while `GENERATING`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Why not the Gemini Batch API?
+
+Spec mentioned the Batch API but its SLA is up to 24h. For a chat-style UX users expect seconds, so generation runs synchronously per variant. The credit price and margin are tuned for the standard API. Swap `lib/services/gemini.ts` to use the Batch API if you want the 50% discount and are OK with delayed delivery.
+
+## Pages
+
+- `/` — generation entry: upload reference, prompt, click Generate. If logged out: opens login modal. If no credits: opens buy modal.
+- `/dashboard` — list of all sessions (drafts + completed). "+ New session" creates a draft and redirects.
+- `/s/[id]` — session editor: reference image, options panel (transparent / aspect ratio / padding), variant rows (add/remove, prompt edit), generate button.
+- `/billing/success` — LS post-payment redirect.
+
+## Reset
+
+```bash
+docker compose down -v          # wipe DB
+docker compose up -d
+npm run db:migrate
+```

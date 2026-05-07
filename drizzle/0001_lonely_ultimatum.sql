@@ -1,0 +1,1 @@
+ALTER TABLE "gen_sessions" ADD COLUMN "common_prompt" text DEFAULT '' NOT NULL;

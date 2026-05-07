@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: autovec-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: autovec
+      POSTGRES_PASSWORD: autovec
+      POSTGRES_DB: autovec
+    ports:
+      - "5434:5432"
+    volumes:
+      - autovec_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autovec -d autovec"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  autovec_pg:

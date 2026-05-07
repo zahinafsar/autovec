@@ -1,0 +1,1 @@
+ALTER TABLE "gen_sessions" ADD COLUMN "original_reference_url" text;
