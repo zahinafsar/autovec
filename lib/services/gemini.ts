@@ -104,8 +104,8 @@ export async function generateVariant(opts: {
 
   const ext = mime.includes("jpeg") ? "jpg" : "png";
   const filename = `${randomUUID()}.${ext}`;
-  const outDir = path.join(process.cwd(), "public", "uploads", "generated");
+  const outDir = path.join(process.cwd(), "..", "media", "autovec");
   await fs.mkdir(outDir, { recursive: true });
   await fs.writeFile(path.join(outDir, filename), imgBytes);
-  return { url: `/uploads/generated/${filename}` };
+  return { url: `/media/autovec/${filename}` };
 }

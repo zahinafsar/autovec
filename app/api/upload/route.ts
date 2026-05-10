@@ -21,9 +21,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not an image" }, { status: 400 });
   }
   const buf = Buffer.from(await file.arrayBuffer());
-  const bucket = (form.get("bucket") === "crop" ? "crop" : "ref") as
-    | "ref"
-    | "crop";
-  const { url } = await saveUploadedImage(buf, mime, bucket);
+  const { url } = await saveUploadedImage(buf, mime);
   return NextResponse.json({ url });
 }

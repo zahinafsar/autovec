@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
     "onnxruntime-node",
     "sharp",
   ],
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: "/media/:path*", destination: "/api/media/:path*" },
+      ],
+    };
+  },
 };
 
 export default nextConfig;
