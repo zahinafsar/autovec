@@ -40,17 +40,17 @@ function buildPrompt(spec: VariantSpec, opts: GenOptions, commonPrompt?: string)
 }
 
 async function fetchToBase64(url: string): Promise<{ data: string; mimeType: string }> {
-  if (url.startsWith("/")) {
-    const local = path.join(process.cwd(), "public", url.replace(/^\//, ""));
+  if (url.startsWith("/media/")) {
+    const local = path.join(process.cwd(), "..", url.slice(1));
     const buf = await fs.readFile(local);
     const ext = path.extname(local).slice(1).toLowerCase();
     const mimeType = ext === "jpg" ? "image/jpeg" : `image/${ext || "png"}`;
     return { data: buf.toString("base64"), mimeType };
   }
   const r = await fetch(url);
-  const ab = await r.arrayBuffer();
   const mimeType = r.headers.get("content-type") ?? "image/png";
-  return { data: Buffer.from(ab).toString("base64"), mimeType };
+  const data = Buffer.from(await r.arrayBuffer()).toString("base64");
+  return { data, mimeType };
 }
 
 export async function generateVariant(opts: {
