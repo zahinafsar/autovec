@@ -116,8 +116,17 @@ export function SessionClient({ id }: { id: string }) {
   }
 
   async function removeVariant(vid: string) {
-    await fetch(`/api/sessions/${id}/variants/${vid}`, { method: "DELETE" });
-    load();
+    confirm({
+      title: "Remove this variant?",
+      message: "The variant and its image (if any) will be deleted.",
+      confirmText: "Remove",
+      cancelText: "Cancel",
+      variant: "danger",
+      onAsyncConfirm: async () => {
+        await fetch(`/api/sessions/${id}/variants/${vid}`, { method: "DELETE" });
+        load();
+      },
+    });
   }
 
   async function updateVariant(vid: string, prompt: string) {
@@ -189,10 +198,16 @@ export function SessionClient({ id }: { id: string }) {
       });
       return;
     }
-    runGenerateOne(variantId);
+    confirm({
+      title: "Generate this variant?",
+      message: `This will use ${CREDITS_PER} credits. You have ${user?.credits ?? 0} credits.`,
+      confirmText: `Generate (${CREDITS_PER} credits)`,
+      cancelText: "Cancel",
+      onConfirm: () => runGenerateOne(variantId),
+    });
   }
 
-  async function generateAll() {
+  async function runGenerateAll() {
     setError(null);
     if (!session) return;
     if (!session.referenceImageUrl) {
@@ -208,7 +223,7 @@ export function SessionClient({ id }: { id: string }) {
     }
     const cost = pending.length * CREDITS_PER;
     if ((user?.credits ?? 0) < cost) {
-      openBuy(() => generateAll());
+      openBuy(() => runGenerateAll());
       return;
     }
     setGenerating(true);
@@ -244,6 +259,29 @@ export function SessionClient({ id }: { id: string }) {
     }
     refresh();
     load();
+  }
+
+  function generateAll() {
+    if (!session) return;
+    if (!session.referenceImageUrl) {
+      setError("Upload a reference image first.");
+      return;
+    }
+    const pending = session.variants.filter(
+      (v) => v.status === "PENDING" || v.status === "FAILED",
+    );
+    if (pending.length === 0) {
+      setError("All variants generated. Add a new one or regenerate individually.");
+      return;
+    }
+    const cost = pending.length * CREDITS_PER;
+    confirm({
+      title: `Generate ${pending.length} variant${pending.length > 1 ? "s" : ""}?`,
+      message: `This will use ${cost} credits. You have ${user?.credits ?? 0} credits.`,
+      confirmText: `Generate (${cost} credits)`,
+      cancelText: "Cancel",
+      onConfirm: () => runGenerateAll(),
+    });
   }
 
   if (loading || !user || !session) {
@@ -286,6 +324,7 @@ export function SessionClient({ id }: { id: string }) {
           <div className="glass p-5 flex flex-col gap-4">
             <ImageDropzone
               value={session.referenceImageUrl}
+              hideRemove
               onChange={(url) =>
                 patchSession({
                   referenceImageUrl: url,
@@ -294,9 +333,34 @@ export function SessionClient({ id }: { id: string }) {
               }
             />
             {session.referenceImageUrl && (
-              <button onClick={() => setCropOpen(true)} className="btn-ghost text-xs">
-                Crop reference
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    confirm({
+                      title: "Remove reference?",
+                      message:
+                        "The reference image will be cleared. You'll need to re-upload before generating.",
+                      confirmText: "Remove",
+                      cancelText: "Cancel",
+                      variant: "danger",
+                      onConfirm: () =>
+                        patchSession({
+                          referenceImageUrl: null,
+                          originalReferenceUrl: null,
+                        }),
+                    })
+                  }
+                  className="btn-ghost text-xs"
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={() => setCropOpen(true)}
+                  className="btn-ghost text-xs flex-1"
+                >
+                  Crop reference
+                </button>
+              </div>
             )}
           </div>
 

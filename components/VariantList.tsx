@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X, Sparkles, RefreshCw } from "lucide-react";
+import { VariantMenu } from "@/components/VariantMenu";
 
 type Variant = {
   id: string;
@@ -69,73 +70,82 @@ function VariantRow({
   const hasResult = variant.status === "COMPLETED" && !!variant.resultUrl;
 
   return (
-    <div className="glass p-4 flex flex-col sm:flex-row gap-4 items-stretch">
-      <div className="flex-1 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs uppercase tracking-wider text-muted">
-              Variant {index + 1}
-            </span>
-            <StatusBadge status={variant.status} />
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onGenerate}
-              disabled={generating}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/15 hover:bg-orange-500/25 border border-orange-400/40 text-orange-300 hover:text-orange-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {hasResult ? (
-                <RefreshCw size={12} strokeWidth={2.4} />
-              ) : (
-                <Sparkles size={12} strokeWidth={2.4} />
-              )}
-              {hasResult ? "Regenerate" : "Generate"}
-            </button>
-            {canRemove && !generating && (
-              <button
-                onClick={onRemove}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-400/40 text-muted hover:text-red-400 transition-colors"
-              >
-                <X size={12} strokeWidth={2.4} />
-                Remove
-              </button>
-            )}
-          </div>
+    <div className="glass p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs uppercase tracking-wider text-muted">
+            Variant {index + 1}
+          </span>
+          <StatusBadge status={variant.status} />
         </div>
-        <textarea
-          className="input-modern resize-none flex-1 min-h-0"
-          placeholder="Describe this variation (e.g. wearing a chef hat, looking surprised)…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => {
-            if (text !== variant.prompt) onUpdate(text);
-          }}
-          disabled={generating}
-        />
-        {variant.error && (
-          <div className="text-xs text-red-400">{variant.error}</div>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onGenerate}
+            disabled={generating}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/15 hover:bg-orange-500/25 border border-orange-400/40 text-orange-300 hover:text-orange-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {hasResult ? (
+              <RefreshCw size={12} strokeWidth={2.4} />
+            ) : (
+              <Sparkles size={12} strokeWidth={2.4} />
+            )}
+            {hasResult ? "Regenerate" : "Generate"}
+          </button>
+          {canRemove && !generating && (
+            <button
+              onClick={onRemove}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-400/40 text-muted hover:text-red-400 transition-colors"
+            >
+              <X size={12} strokeWidth={2.4} />
+              Remove
+            </button>
+          )}
+          {hasResult && variant.resultUrl && (
+            <VariantMenu
+              url={variant.resultUrl}
+              filenameBase={`variant-${index + 1}`}
+            />
+          )}
+        </div>
       </div>
 
-      <div className={`variant-card w-44 ${variant.resultUrl ? "has-result" : ""}`}>
-        {generating && (
-          <div className="ai-thinking">
-            <div className="ai-orb">
-              <div className="ai-orb-ring" />
-              <div className="ai-orb-core" />
+      <div className="flex flex-col sm:flex-row gap-4 items-stretch">
+        <div className="flex-1 flex flex-col gap-2">
+          <textarea
+            className="input-modern resize-none flex-1 min-h-0"
+            placeholder="Describe this variation (e.g. wearing a chef hat, looking surprised)…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={() => {
+              if (text !== variant.prompt) onUpdate(text);
+            }}
+            disabled={generating}
+          />
+          {variant.error && (
+            <div className="text-xs text-red-400">{variant.error}</div>
+          )}
+        </div>
+
+        <div className={`variant-card w-44 ${variant.resultUrl ? "has-result" : ""}`}>
+          {generating && (
+            <div className="ai-thinking">
+              <div className="ai-orb">
+                <div className="ai-orb-ring" />
+                <div className="ai-orb-core" />
+              </div>
+              <span className="ai-shimmer-text">Generating</span>
             </div>
-            <span className="ai-shimmer-text">Generating</span>
-          </div>
-        )}
-        {variant.resultUrl && !generating && (
-          <a href={variant.resultUrl} target="_blank" rel="noreferrer">
-            { /* eslint-disable-next-line @next/next/no-img-element */ }
-            <img src={variant.resultUrl} alt={`variant ${index + 1}`} />
-          </a>
-        )}
-        {!variant.resultUrl && !generating && (
-          <span className="text-xs text-muted">No image yet</span>
-        )}
+          )}
+          {variant.resultUrl && !generating && (
+            <a href={variant.resultUrl} target="_blank" rel="noreferrer">
+              { /* eslint-disable-next-line @next/next/no-img-element */ }
+              <img src={variant.resultUrl} alt={`variant ${index + 1}`} />
+            </a>
+          )}
+          {!variant.resultUrl && !generating && (
+            <span className="text-xs text-muted">No image yet</span>
+          )}
+        </div>
       </div>
     </div>
   );

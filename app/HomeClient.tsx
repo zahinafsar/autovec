@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ImageDropzone } from "@/components/ImageDropzone";
+import { confirm } from "@/components/ConfirmModal";
+
+const CREDITS_PER = 10;
 
 export function HomeClient() {
   const router = useRouter();
@@ -22,10 +25,21 @@ export function HomeClient() {
     setPrompts((prev) => [...prev.slice(0, i + 1), "", ...prev.slice(i + 1)]);
   }
   function removeAt(i: number) {
-    setPrompts((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
+    if (prompts.length === 1) return;
+    confirm({
+      title: "Remove this variant?",
+      message: "The prompt for this variant will be discarded.",
+      confirmText: "Remove",
+      cancelText: "Cancel",
+      variant: "danger",
+      onConfirm: () =>
+        setPrompts((prev) =>
+          prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i),
+        ),
+    });
   }
 
-  async function start() {
+  async function runStart() {
     if (launching.current) return;
     setError(null);
     if (!file) {
@@ -91,6 +105,23 @@ export function HomeClient() {
     } else {
       after();
     }
+  }
+
+  function start() {
+    if (!file) {
+      setError("Upload a reference cartoon first.");
+      return;
+    }
+    const cost = prompts.length * CREDITS_PER;
+    confirm({
+      title: `Generate ${prompts.length} variant${prompts.length > 1 ? "s" : ""}?`,
+      message: `This will use ${cost} credits${
+        user ? ` (you have ${user.credits})` : ""
+      }.`,
+      confirmText: `Generate (${cost} credits)`,
+      cancelText: "Cancel",
+      onConfirm: () => runStart(),
+    });
   }
 
   return (

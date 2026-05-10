@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: [
+    "@imgly/background-removal-node",
+    "onnxruntime-node",
+    "sharp",
+  ],
 };
 
 export default nextConfig;

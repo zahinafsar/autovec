@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { setSessionCookie } from "@/lib/session";
+import { FREE_SIGNUP_CREDITS } from "@/lib/env";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
   const passwordHash = await bcrypt.hash(password, 10);
   const [u] = await db
     .insert(users)
-    .values({ email, passwordHash, name })
+    .values({ email, passwordHash, name, credits: FREE_SIGNUP_CREDITS })
     .returning();
 
   await setSessionCookie(u.id);

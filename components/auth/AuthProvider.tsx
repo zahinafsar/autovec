@@ -30,11 +30,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [buyRequest, setBuyRequest] = useState<{ open: boolean; onSuccess?: () => void }>({ open: false });
 
   const refresh = useCallback(async () => {
-    const r = await fetch("/api/auth/me");
-    const j = await r.json();
-    setUser(j.user);
-    setLoading(false);
-    return j.user as AuthUser | null;
+    try {
+      const r = await fetch("/api/auth/me");
+      if (!r.ok) {
+        setUser(null);
+        return null;
+      }
+      const j = await r.json();
+      setUser(j.user);
+      return j.user as AuthUser | null;
+    } catch {
+      setUser(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

@@ -55,7 +55,6 @@ npm run dev                              # http://localhost:3000
 | `DATABASE_URL` | Postgres URL (Docker default points at `:5434`) |
 | `SESSION_SECRET` | Long random string; signs the auth cookie |
 | `GEMINI_API_KEY` | From Google AI Studio |
-| `REMOVE_BG_API_KEY` | From remove.bg — only used when transparent is on |
 | `LEMONSQUEEZY_API_KEY` | LS API JWT |
 | `LEMONSQUEEZY_STORE_ID` | LS store ID |
 | `LEMONSQUEEZY_VARIANT_ID` | Single variant; price overridden per-checkout via `customPrice` |
